@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>OPEN TUNE 選考ツール</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ────────────────────────────────────────
+       Home Screen
+    ──────────────────────────────────────── */
+    #homeScreen {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 32px 16px 40px;
+    }
+
+    .home-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .home-sub {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 28px;
+    }
+
+    .btn-new {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 18px;
+      background: #1a1a1a;
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 28px;
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #aaa;
+      letter-spacing: 0.6px;
+      margin-bottom: 10px;
+    }
+
+    .event-card {
+      background: white;
+      border-radius: 16px;
+      padding: 18px 20px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      cursor: pointer;
+    }
+
+    .event-card:active { background: #f8f8f8; }
+
+    .event-icon {
+      width: 44px;
+      height: 44px;
+      background: #f0f2f5;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .event-info { flex: 1; min-width: 0; }
+
+    .event-name {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .event-meta {
+      font-size: 13px;
+      color: #999;
+    }
+
+    .event-stats {
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .stat-big {
+      font-size: 22px;
+      font-weight: 800;
+      color: #1a1a1a;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    .del-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: #ccc;
+      cursor: pointer;
+      padding: 6px;
+      margin-left: 2px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px 0;
+      color: #bbb;
+      font-size: 14px;
+    }
+
+    /* ────────────────────────────────────────
+       Import Screen
+    ──────────────────────────────────────── */
+    #importScreen {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0 0 40px;
+    }
+
+    .import-header {
+      background: white;
+      padding: 14px 16px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .back-btn {
+      background: none;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      color: #0066cc;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+
+    .import-header-title { font-size: 17px; font-weight: 800; }
+
+    .import-body { padding: 24px 16px; }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #888;
+      letter-spacing: 0.5px;
+      margin-bottom: 7px;
+    }
+
+    .text-input {
+      width: 100%;
+      padding: 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 12px;
+      font-size: 16px;
+      font-family: inherit;
+      background: white;
+      margin-bottom: 20px;
+    }
+
+    .text-input:focus { outline: none; border-color: #1a1a1a; }
+
+    textarea.data-input {
+      width: 100%;
+      height: 160px;
+      border: 1.5px solid #ddd;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 13px;
+      font-family: monospace;
+      resize: vertical;
+      background: white;
+    }
+
+    textarea.data-input:focus { outline: none; border-color: #1a1a1a; }
+
+    .import-hint {
+      font-size: 13px;
+      color: #999;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+
+    .import-hint code {
+      background: #eee;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 12px;
+    }
+
+    .btn-primary {
+      display: block;
+      width: 100%;
+      padding: 18px;
+      background: #1a1a1a;
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 14px;
+    }
+
+    /* ────────────────────────────────────────
+       Card Screen
+    ──────────────────────────────────────── */
+    #cardScreen {
+      max-width: 600px;
+      margin: 0 auto;
+      padding-bottom: 24px;
+    }
+
+    .top-bar {
+      background: white;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #eee;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .home-icon-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 2px 4px;
+      color: #555;
+    }
+
+    .event-pill {
+      font-size: 12px;
+      font-weight: 700;
+      color: white;
+      background: #1a1a1a;
+      border-radius: 20px;
+      padding: 4px 10px;
+      white-space: nowrap;
+    }
+
+    .prog-text {
+      font-size: 13px;
+      font-weight: 700;
+      color: #555;
+      white-space: nowrap;
+    }
+
+    .prog-wrap {
+      flex: 1;
+      background: #eee;
+      border-radius: 4px;
+      height: 5px;
+    }
+
+    .prog-fill {
+      background: #1a1a1a;
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+
+    .rated-count { font-size: 12px; color: #aaa; white-space: nowrap; }
+
+    .summary-link {
+      font-size: 13px;
+      color: #0066cc;
+      background: none;
+      border: 1px solid #cce0ff;
+      border-radius: 8px;
+      padding: 5px 11px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .card {
+      background: white;
+      border-radius: 18px;
+      margin: 16px 16px 12px;
+      padding: 22px 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+
+    .artist-name {
+      font-size: 26px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 18px;
+    }
+
+    .badge {
+      background: #f0f2f5;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 13px;
+      color: #444;
+      font-weight: 500;
+    }
+
+    .info-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 11px;
+      font-size: 14px;
+    }
+
+    .lbl {
+      color: #aaa;
+      font-size: 11px;
+      font-weight: 600;
+      min-width: 52px;
+      padding-top: 2px;
+      letter-spacing: 0.3px;
+    }
+
+    .val { flex: 1; line-height: 1.55; word-break: break-all; }
+
+    .link-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #0066cc;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 14px;
+      background: #f0f6ff;
+      border-radius: 10px;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+
+    .note-box {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 13px 14px;
+      font-size: 14px;
+      line-height: 1.65;
+      color: #333;
+      white-space: pre-wrap;
+      margin-top: 12px;
+    }
+
+    /* Rating */
+    .rating-card {
+      background: white;
+      border-radius: 18px;
+      margin: 0 16px 12px;
+      padding: 18px 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+
+    .rating-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #aaa;
+      letter-spacing: 0.8px;
+      margin-bottom: 13px;
+    }
+
+    .rating-btns {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .rbtn {
+      padding: 16px 6px;
+      border: 2px solid #e8e8e8;
+      border-radius: 14px;
+      font-size: 24px;
+      background: white;
+      cursor: pointer;
+      text-align: center;
+      transition: transform 0.1s, border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+
+    .rbtn:active { transform: scale(0.94); }
+    .rbtn[data-r="◎"].on { border-color: #16a34a; background: #f0fdf4; }
+    .rbtn[data-r="○"].on { border-color: #2563eb; background: #eff6ff; }
+    .rbtn[data-r="△"].on { border-color: #d97706; background: #fffbeb; }
+    .rbtn[data-r="×"].on { border-color: #dc2626; background: #fef2f2; }
+
+    .memo {
+      width: 100%;
+      height: 76px;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      padding: 11px 13px;
+      font-size: 14px;
+      resize: none;
+      font-family: inherit;
+      line-height: 1.55;
+      background: white;
+    }
+
+    .memo:focus { outline: none; border-color: #1a1a1a; }
+
+    /* Nav */
+    .nav-row { display: flex; gap: 12px; margin: 0 16px; }
+
+    .nav-btn {
+      flex: 1;
+      padding: 17px;
+      border: none;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      background: white;
+      color: #1a1a1a;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+
+    .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .nav-btn.fwd { background: #1a1a1a; color: white; }
+
+    /* ────────────────────────────────────────
+       Summary Screen
+    ──────────────────────────────────────── */
+    #summaryScreen {
+      max-width: 600px;
+      margin: 0 auto;
+      padding-bottom: 40px;
+    }
+
+    .sum-header {
+      background: white;
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .sum-title { font-size: 17px; font-weight: 800; }
+
+    .reset-btn {
+      margin-left: auto;
+      background: none;
+      border: 1px solid #ffcccc;
+      border-radius: 8px;
+      padding: 5px 11px;
+      font-size: 13px;
+      color: #cc0000;
+      cursor: pointer;
+    }
+
+    .group-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #999;
+      letter-spacing: 0.5px;
+      padding: 18px 16px 8px;
+    }
+
+    .sum-item {
+      background: white;
+      margin: 0 16px 8px;
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+      cursor: pointer;
+    }
+
+    .sum-item:active { background: #f8f8f8; }
+    .sum-icon { font-size: 22px; min-width: 28px; text-align: center; margin-top: 2px; }
+    .sum-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+    .sum-sub { font-size: 13px; color: #999; }
+    .sum-memo { font-size: 13px; color: #555; margin-top: 5px; line-height: 1.5; }
+
+    .export-btn {
+      display: block;
+      width: calc(100% - 32px);
+      margin: 20px 16px 0;
+      padding: 17px;
+      background: #1a1a1a;
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.82);
+      color: white;
+      padding: 12px 22px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 999;
+    }
+
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<!-- ── Home ────────────────────────────────────────────── -->
+<div id="homeScreen" class="screen">
+  <div id="homeScreen" style="max-width:600px;margin:0 auto;padding:32px 16px 40px;">
+    <div class="home-title">OPEN TUNE 選考ツール</div>
+    <div class="home-sub">イベントを選択、または新規作成</div>
+
+    <button class="btn-new" onclick="goImport()">＋ 新しいイベントを始める</button>
+
+    <div class="section-label">保存済みイベント</div>
+    <div id="eventList"></div>
+  </div>
+</div>
+
+<!-- ── Import ───────────────────────────────────────────── -->
+<div id="importScreen" class="screen">
+  <div class="import-header">
+    <button class="back-btn" onclick="goHome()">← 戻る</button>
+    <span class="import-header-title">新しいイベント</span>
+  </div>
+  <div class="import-body">
+    <div class="field-label">イベント名</div>
+    <input type="text" class="text-input" id="eventNameInput" placeholder="例：OPEN TUNE vol.10">
+
+    <div class="field-label">回答データ</div>
+    <p class="import-hint">
+      Google スプレッドシートの回答シートを全選択（<code>⌘A</code>）→ コピー（<code>⌘C</code>）して貼り付けてください。ヘッダー行ごとでOKです。
+    </p>
+    <textarea class="data-input" id="pasteArea" placeholder="タイムスタンプ&#9;アーティスト名&#9;メールアドレス&#9;…"></textarea>
+    <button class="btn-primary" onclick="loadData()">読み込む →</button>
+  </div>
+</div>
+
+<!-- ── Cards ────────────────────────────────────────────── -->
+<div id="cardScreen" class="screen">
+  <div class="top-bar">
+    <button class="home-icon-btn" onclick="goHome()" title="ホームへ">⌂</button>
+    <span class="event-pill" id="eventPill"></span>
+    <span class="prog-text" id="progText">1 / 0</span>
+    <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+    <span class="rated-count" id="ratedCount"></span>
+    <button class="summary-link" onclick="goSummary()">一覧</button>
+  </div>
+
+  <div class="card" id="artistCard"></div>
+
+  <div class="rating-card">
+    <div class="rating-title">RATING</div>
+    <div class="rating-btns">
+      <button class="rbtn" data-r="◎" onclick="rate('◎')">◎</button>
+      <button class="rbtn" data-r="○" onclick="rate('○')">○</button>
+      <button class="rbtn" data-r="△" onclick="rate('△')">△</button>
+      <button class="rbtn" data-r="×" onclick="rate('×')">×</button>
+    </div>
+    <textarea class="memo" id="memoBox" placeholder="メモ（任意）" oninput="saveMemo()"></textarea>
+  </div>
+
+  <div class="nav-row">
+    <button class="nav-btn" id="prevBtn" onclick="go(-1)">← 前へ</button>
+    <button class="nav-btn fwd" id="nextBtn" onclick="go(1)">次へ →</button>
+  </div>
+</div>
+
+<!-- ── Summary ──────────────────────────────────────────── -->
+<div id="summaryScreen" class="screen">
+  <div class="sum-header">
+    <button class="back-btn" onclick="backToCards()">← 戻る</button>
+    <span class="sum-title" id="sumTitle"></span>
+    <button class="reset-btn" onclick="resetEvent()">このイベントを削除</button>
+  </div>
+  <div id="sumBody"></div>
+  <button class="export-btn" onclick="exportTSV()">結果をコピー（スプレッドシートに貼付用）</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Column map ────────────────────────────────────────────
+const C = { ts:0, name:1, email:2, phone:3, contact:4, sns:5, music:6, type:7, members:8, note:9 };
+
+// ── State ─────────────────────────────────────────────────
+let currentEvent = null;  // event key string
+let rows   = [];
+let scores = {};          // { rowIndex: { score, memo } }
+let cur    = 0;
+
+// ── Storage helpers ───────────────────────────────────────
+const IDX_KEY = 'ot_index';   // array of event keys
+
+function allKeys()        { return JSON.parse(localStorage.getItem(IDX_KEY) || '[]'); }
+function dataKey(k)       { return `ot_data_${k}`; }
+function scoresKey(k)     { return `ot_scores_${k}`; }
+function metaKey(k)       { return `ot_meta_${k}`; }
+
+function saveIndex(keys)  { localStorage.setItem(IDX_KEY, JSON.stringify(keys)); }
+
+function loadEvent(key) {
+  currentEvent = key;
+  rows   = JSON.parse(localStorage.getItem(dataKey(key))   || '[]');
+  scores = JSON.parse(localStorage.getItem(scoresKey(key)) || '{}');
+  cur    = 0;
+}
+
+function persistScores() {
+  localStorage.setItem(scoresKey(currentEvent), JSON.stringify(scores));
+}
+
+function getMeta(key) {
+  return JSON.parse(localStorage.getItem(metaKey(key)) || '{}');
+}
+
+function saveMeta(key, meta) {
+  localStorage.setItem(metaKey(key), JSON.stringify(meta));
+}
+
+// ── Screen helpers ────────────────────────────────────────
+function switchScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ── Home ──────────────────────────────────────────────────
+function goHome() {
+  renderHome();
+  switchScreen('homeScreen');
+}
+
+function renderHome() {
+  const keys = allKeys();
+  const el = document.getElementById('eventList');
+
+  if (keys.length === 0) {
+    el.innerHTML = '<div class="empty-state">保存済みのイベントはありません</div>';
+    return;
+  }
+
+  el.innerHTML = keys.slice().reverse().map(key => {
+    const meta   = getMeta(key);
+    const rows_  = JSON.parse(localStorage.getItem(dataKey(key)) || '[]');
+    const sc     = JSON.parse(localStorage.getItem(scoresKey(key)) || '{}');
+    const rated  = Object.values(sc).filter(v => v.score).length;
+    const total  = rows_.length;
+    const pct    = total ? Math.round(rated / total * 100) : 0;
+
+    return `
+      <div class="event-card" onclick="openEvent('${key}')">
+        <div class="event-icon">🎵</div>
+        <div class="event-info">
+          <div class="event-name">${esc(meta.name || key)}</div>
+          <div class="event-meta">${total}組 ／ 評価済 ${rated}（${pct}%）</div>
+        </div>
+        <div class="event-stats">
+          <div class="stat-big">${rated}<span style="font-size:14px;color:#aaa">/${total}</span></div>
+          <div class="stat-label">評価済</div>
+        </div>
+        <button class="del-btn" onclick="deleteEvent(event,'${key}')">✕</button>
+      </div>`;
+  }).join('');
+}
+
+function openEvent(key) {
+  loadEvent(key);
+  switchScreen('cardScreen');
+  renderCard();
+}
+
+function deleteEvent(e, key) {
+  e.stopPropagation();
+  const meta = getMeta(key);
+  if (!confirm(`「${meta.name || key}」を削除しますか？\n評価・メモもすべて消去されます。`)) return;
+  localStorage.removeItem(dataKey(key));
+  localStorage.removeItem(scoresKey(key));
+  localStorage.removeItem(metaKey(key));
+  const keys = allKeys().filter(k => k !== key);
+  saveIndex(keys);
+  renderHome();
+  showToast('削除しました');
+}
+
+// ── Import ────────────────────────────────────────────────
+function goImport() {
+  document.getElementById('eventNameInput').value = '';
+  document.getElementById('pasteArea').value = '';
+  switchScreen('importScreen');
+}
+
+function loadData() {
+  const nameRaw = document.getElementById('eventNameInput').value.trim();
+  const raw     = document.getElementById('pasteArea').value.trim();
+
+  if (!nameRaw) { alert('イベント名を入力してください'); return; }
+  if (!raw)     { alert('データを貼り付けてください'); return; }
+
+  const lines  = raw.split('\n').filter(l => l.trim());
+  let start = 0;
+  if (lines[0].includes('タイムスタンプ') || lines[0].includes('アーティスト')) start = 1;
+
+  const parsed = lines.slice(start).map(l => l.split('\t'));
+  if (!parsed.length) { alert('データを読み込めませんでした'); return; }
+
+  // Use name as key (strip spaces/slashes for safety)
+  const key = nameRaw.replace(/[\s\/\\]/g, '_');
+
+  // If key already exists, confirm overwrite
+  if (allKeys().includes(key)) {
+    if (!confirm(`「${nameRaw}」は既に存在します。データを上書きしますか？\n（評価・メモはリセットされます）`)) return;
+  } else {
+    const keys = allKeys();
+    keys.push(key);
+    saveIndex(keys);
+  }
+
+  localStorage.setItem(dataKey(key),   JSON.stringify(parsed));
+  localStorage.setItem(scoresKey(key), JSON.stringify({}));
+  saveMeta(key, { name: nameRaw, createdAt: new Date().toISOString() });
+
+  loadEvent(key);
+  switchScreen('cardScreen');
+  renderCard();
+  showToast(`${nameRaw} を読み込みました（${parsed.length}件）`);
+}
+
+// ── Card ──────────────────────────────────────────────────
+function renderCard() {
+  const row = rows[cur];
+  if (!row) return;
+
+  const name    = row[C.name]    || '—';
+  const type    = row[C.type]    || '';
+  const members = row[C.members] || '';
+  const contact = row[C.contact] || '';
+  const email   = row[C.email]   || '';
+  const phone   = row[C.phone]   || '';
+  const sns     = row[C.sns]     || '';
+  const music   = row[C.music]   || '';
+  const note    = row[C.note]    || '';
+
+  const meta  = getMeta(currentEvent);
+  const rated = Object.values(scores).filter(v => v.score).length;
+
+  document.getElementById('eventPill').textContent   = meta.name || currentEvent;
+  document.getElementById('progText').textContent    = `${cur + 1} / ${rows.length}`;
+  document.getElementById('progFill').style.width    = `${((cur + 1) / rows.length) * 100}%`;
+  document.getElementById('ratedCount').textContent  = `評価済 ${rated}`;
+
+  let badges = '';
+  if (type)    badges += `<span class="badge">${esc(type)}</span>`;
+  if (members) badges += `<span class="badge">${esc(members)}名</span>`;
+
+  let links = '';
+  if (sns)   links += `<a class="link-pill" href="${esc(sns)}" target="_blank">🔗 SNS</a>`;
+  if (music) links += `<a class="link-pill" href="${esc(music)}" target="_blank">🎵 楽曲</a>`;
+
+  let info = '';
+  if (contact) info += infoRow('記入者', contact);
+  if (email)   info += infoRow('メール', email);
+  if (phone)   info += infoRow('電話',   phone);
+
+  document.getElementById('artistCard').innerHTML = `
+    <div class="artist-name">${esc(name)}</div>
+    ${badges ? `<div class="badges">${badges}</div>` : ''}
+    ${info}
+    ${links ? `<div style="margin:12px 0 4px">${links}</div>` : ''}
+    ${note ? `<div class="note-box">${esc(note)}</div>` : ''}
+  `;
+
+  const r = scores[cur] || {};
+  document.getElementById('memoBox').value = r.memo || '';
+  updateRatingUI(r.score || null);
+
+  document.getElementById('prevBtn').disabled     = cur === 0;
+  document.getElementById('nextBtn').disabled     = false;
+  document.getElementById('nextBtn').textContent  = cur === rows.length - 1 ? '一覧を見る ›' : '次へ →';
+}
+
+function infoRow(label, val) {
+  return `<div class="info-row"><span class="lbl">${label}</span><span class="val">${esc(val)}</span></div>`;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function rate(score) {
+  if (!scores[cur]) scores[cur] = {};
+  scores[cur].score = scores[cur].score === score ? null : score;
+  persistScores();
+  updateRatingUI(scores[cur].score);
+  showToast(scores[cur].score ? `${scores[cur].score} で保存` : '評価を解除しました');
+  document.getElementById('ratedCount').textContent =
+    `評価済 ${Object.values(scores).filter(v => v.score).length}`;
+}
+
+function saveMemo() {
+  if (!scores[cur]) scores[cur] = {};
+  scores[cur].memo = document.getElementById('memoBox').value;
+  persistScores();
+}
+
+function updateRatingUI(active) {
+  document.querySelectorAll('.rbtn').forEach(btn => {
+    btn.classList.toggle('on', btn.dataset.r === active);
+  });
+}
+
+function go(dir) {
+  const next = cur + dir;
+  if (next >= rows.length) { goSummary(); return; }
+  if (next < 0) return;
+  cur = next;
+  renderCard();
+  window.scrollTo(0, 0);
+}
+
+// ── Summary ───────────────────────────────────────────────
+const GROUPS = ['◎','○','△','×','未評価'];
+const G_LABEL = {
+  '◎':'◎  推し',
+  '○':'○  候補',
+  '△':'△  保留',
+  '×':'×  今回は見送り',
+  '未評価':'—  未評価'
+};
+
+function goSummary() {
+  const meta = getMeta(currentEvent);
+  document.getElementById('sumTitle').textContent = meta.name || currentEvent;
+
+  const groups = {};
+  GROUPS.forEach(g => groups[g] = []);
+  rows.forEach((row, i) => {
+    const r = scores[i] || {};
+    groups[r.score || '未評価'].push({ row, r, i });
+  });
+
+  let html = '';
+  GROUPS.forEach(g => {
+    const items = groups[g];
+    if (!items.length) return;
+    html += `<div class="group-title">${G_LABEL[g]}（${items.length}組）</div>`;
+    items.forEach(({ row, r, i }) => {
+      const name = row[C.name] || '—';
+      const meta_ = [row[C.type]||'', (row[C.members]||'')+'名'].filter(x=>x&&x!=='名').join(' / ');
+      html += `
+        <div class="sum-item" onclick="jumpTo(${i})">
+          <div class="sum-icon">${g === '未評価' ? '—' : g}</div>
+          <div style="flex:1">
+            <div class="sum-name">${esc(name)}</div>
+            ${meta_ ? `<div class="sum-sub">${esc(meta_)}</div>` : ''}
+            ${r.memo ? `<div class="sum-memo">${esc(r.memo)}</div>` : ''}
+          </div>
+        </div>`;
+    });
+  });
+
+  document.getElementById('sumBody').innerHTML = html;
+  switchScreen('summaryScreen');
+}
+
+function jumpTo(i) {
+  cur = i;
+  switchScreen('cardScreen');
+  renderCard();
+}
+
+function backToCards() {
+  switchScreen('cardScreen');
+  renderCard();
+}
+
+function resetEvent() {
+  const meta = getMeta(currentEvent);
+  if (!confirm(`「${meta.name || currentEvent}」を削除します。\nホーム画面に戻ります。`)) return;
+  localStorage.removeItem(dataKey(currentEvent));
+  localStorage.removeItem(scoresKey(currentEvent));
+  localStorage.removeItem(metaKey(currentEvent));
+  const keys = allKeys().filter(k => k !== currentEvent);
+  saveIndex(keys);
+  currentEvent = null;
+  goHome();
+  showToast('削除しました');
+}
+
+// ── Export ────────────────────────────────────────────────
+function exportTSV() {
+  let out = 'アーティスト名\t出演形態\t人数\t評価\tメモ\n';
+  rows.forEach((row, i) => {
+    const r = scores[i] || {};
+    out += [row[C.name]||'', row[C.type]||'', row[C.members]||'', r.score||'', r.memo||''].join('\t') + '\n';
+  });
+
+  navigator.clipboard.writeText(out).then(() => {
+    showToast('コピーしました！スプレッドシートに貼り付けできます');
+  }).catch(() => {
+    const el = document.createElement('textarea');
+    el.value = out;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast('コピーしました！');
+  });
+}
+
+// ── Toast ─────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ── Init ──────────────────────────────────────────────────
+goHome();
+</script>
+</body>
+</html>
