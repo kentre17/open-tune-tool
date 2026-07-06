@@ -409,7 +409,8 @@
     <p class="import-hint">
       HubSpotのフォーム回答をCSVエクスポートしたファイルを選択してください（ヘッダー行から自動で項目を認識します）。
     </p>
-    <input type="file" class="text-input" id="csvFileInput" accept=".csv,text/csv" onchange="handleFile(event)">
+    <!-- accept属性は付けない：iPhoneのSafariではacceptでCSVを指定するとファイルが選択できなくなることがあるため、全ファイル選択可にして読み込み時に内容で判定する -->
+    <input type="file" class="text-input" id="csvFileInput" onchange="handleFile(event)">
     <div class="field-label">またはCSV／表データを貼り付け</div>
     <textarea class="data-input" id="pasteArea" placeholder="アーティスト名,活動形態を教えてください（複数選択可）,…（ヘッダー行を含めて貼り付け）"></textarea>
     <button class="btn-primary" onclick="loadData()">読み込む →</button>
@@ -676,7 +677,8 @@ function handleFile(evt) {
 
 function loadData() {
   const nameRaw = document.getElementById('eventNameInput').value.trim();
-  const raw     = document.getElementById('pasteArea').value.trim();
+  // 先頭のBOM（HubSpotエクスポートに付くことがある不可視文字）を除去してからパースする
+  const raw     = document.getElementById('pasteArea').value.replace(/^\uFEFF/, '').trim();
   if (!nameRaw) { alert('イベント名を入力してください'); return; }
   if (!raw)     { alert('CSVファイルを選択するか、データを貼り付けてください'); return; }
 
