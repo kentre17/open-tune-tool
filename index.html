@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>OPEN TUNE 選考ツール</title>
+  <title>出演選考ツール</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -388,7 +388,7 @@
 <!-- ── Home ─────────────────────────────────────────────── -->
 <div id="homeScreen" class="screen">
   <div style="max-width:600px;margin:0 auto;padding:32px 16px 40px;">
-    <div class="home-title">OPEN TUNE 選考ツール</div>
+    <div class="home-title">出演選考ツール</div>
     <div class="home-sub">イベントを選択、または新規作成</div>
     <button class="btn-new" onclick="goImport()">＋ 新しいイベントを始める</button>
     <div class="section-label">保存済みイベント</div>
@@ -404,12 +404,14 @@
   </div>
   <div class="import-body">
     <div class="field-label">イベント名</div>
-    <input type="text" class="text-input" id="eventNameInput" placeholder="例：OPEN TUNE vol.10">
-    <div class="field-label">回答データ</div>
+    <input type="text" class="text-input" id="eventNameInput" placeholder="例：T2 Blowout vol.1">
+    <div class="field-label">CSVファイル</div>
     <p class="import-hint">
-      Google スプレッドシートの回答シートを全選択（<code>⌘A</code>）→ コピー（<code>⌘C</code>）して貼り付けてください。ヘッダー行ごとでOKです。
+      HubSpotのフォーム回答をCSVエクスポートしたファイルを選択してください（ヘッダー行から自動で項目を認識します）。
     </p>
-    <textarea class="data-input" id="pasteArea" placeholder="タイムスタンプ&#9;アーティスト名&#9;メールアドレス&#9;…"></textarea>
+    <input type="file" class="text-input" id="csvFileInput" accept=".csv,text/csv" onchange="handleFile(event)">
+    <div class="field-label">またはCSV／表データを貼り付け</div>
+    <textarea class="data-input" id="pasteArea" placeholder="アーティスト名,活動形態を教えてください（複数選択可）,…（ヘッダー行を含めて貼り付け）"></textarea>
     <button class="btn-primary" onclick="loadData()">読み込む →</button>
   </div>
 </div>
@@ -469,7 +471,107 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const C = { ts:0, name:1, email:2, phone:3, contact:4, sns:5, music:6, type:7, members:8, note:9 };
+// ── CSV/TSV parsing（HubSpotエクスポート対応・ヘッダー名で列を認識） ──
+const FIELD_DEFS = [
+  { key: 'name',      exact: ['アーティスト名'] },
+  { key: 'typeMain',  exact: ['活動形態を教えてください（複数選択可）'], includes: ['活動形態'], exclude: ['補足'] },
+  { key: 'typeNote',  exact: ['活動形態について補足があればご記入ください（任意）'], includes: ['補足'] },
+  { key: 'sns',       exact: ['SNSリンク'], includes: ['SNS'] },
+  { key: 'music',     exact: ['楽曲リンク'], includes: ['楽曲'] },
+  { key: 'role',      exact: ['フォームをご記入いただいている方の属性'], includes: ['属性'] },
+  { key: 'lastName',  exact: ['名字'] },
+  { key: 'firstName', exact: ['名前'] },
+  { key: 'company',   exact: ['会社名/団体名'], includes: ['会社名'] },
+  { key: 'email',     exact: ['Eメール'], includes: ['メール'], exclude: ['Contact'] },
+  { key: 'phone',     exact: ['ご連絡可能な電話番号'], includes: ['電話'] },
+  { key: 'note',      exact: ['備考'] },
+];
+
+function detectDelimiter(text) {
+  const firstLine = text.split(/\r?\n/)[0] || '';
+  const tabs   = (firstLine.match(/\t/g)  || []).length;
+  const commas = (firstLine.match(/,/g) || []).length;
+  return tabs > commas ? '\t' : ',';
+}
+
+function parseDelimited(text, delim) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  const src = text.replace(/\r\n/g, '\n');
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (src[i + 1] === '"') { field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === delim) {
+      row.push(field); field = '';
+    } else if (c === '\n') {
+      row.push(field); rows.push(row); row = []; field = '';
+    } else {
+      field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => !(r.length === 1 && r[0].trim() === ''));
+}
+
+function buildColIndex(header) {
+  const idx = {}, used = new Set();
+  FIELD_DEFS.forEach(def => {
+    let found = -1;
+    for (const ex of def.exact) {
+      const i = header.indexOf(ex);
+      if (i !== -1 && !used.has(i)) { found = i; break; }
+    }
+    if (found === -1 && def.includes) {
+      for (let i = 0; i < header.length; i++) {
+        if (used.has(i)) continue;
+        const h = header[i];
+        if (def.includes.some(s => h.includes(s)) && !(def.exclude || []).some(s => h.includes(s))) { found = i; break; }
+      }
+    }
+    idx[def.key] = found;
+    if (found !== -1) used.add(found);
+  });
+  return idx;
+}
+
+function convertRow(raw, idx) {
+  const get = key => (idx[key] !== -1 ? (raw[idx[key]] || '').trim() : '');
+  return {
+    name: get('name'), typeMain: get('typeMain'), typeNote: get('typeNote'),
+    sns: get('sns'), music: get('music'), role: get('role'),
+    lastName: get('lastName'), firstName: get('firstName'), company: get('company'),
+    email: get('email'), phone: get('phone'), note: get('note'),
+  };
+}
+
+// トークンを空白区切りで見て「ラベル URL」の並びを抽出（複数リンクをまとめて記載しているケースに対応）
+function extractLinks(text) {
+  if (!text) return [];
+  const tokens = text.replace(/\r?\n/g, ' ').split(/\s+/).filter(Boolean);
+  const out = [], seen = new Set();
+  let labelBuf = [];
+  tokens.forEach(tok => {
+    if (/^https?:\/\//.test(tok)) {
+      const url = tok.replace(/[)\]、。]+$/, '');
+      if (!seen.has(url)) {
+        seen.add(url);
+        out.push({ label: labelBuf.join(' ').replace(/[:：]$/, '').trim(), url });
+      }
+      labelBuf = [];
+    } else {
+      labelBuf.push(tok);
+    }
+  });
+  return out;
+}
 
 let currentEvent = null;
 let rows   = [];
@@ -561,18 +663,33 @@ function goImport() {
   switchScreen('importScreen');
 }
 
+function handleFile(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById('pasteArea').value = reader.result;
+    loadData();
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
 function loadData() {
   const nameRaw = document.getElementById('eventNameInput').value.trim();
   const raw     = document.getElementById('pasteArea').value.trim();
   if (!nameRaw) { alert('イベント名を入力してください'); return; }
-  if (!raw)     { alert('データを貼り付けてください'); return; }
+  if (!raw)     { alert('CSVファイルを選択するか、データを貼り付けてください'); return; }
 
-  const lines = raw.split('\n').filter(l => l.trim());
-  let start = 0;
-  if (lines[0].includes('タイムスタンプ') || lines[0].includes('アーティスト')) start = 1;
+  const delim = detectDelimiter(raw);
+  const table = parseDelimited(raw, delim);
+  if (table.length < 2) { alert('データを読み込めませんでした'); return; }
 
-  const parsed = lines.slice(start).map(l => l.split('\t'));
-  if (!parsed.length) { alert('データを読み込めませんでした'); return; }
+  const header = table[0];
+  const colIdx = buildColIndex(header);
+  const parsed = table.slice(1)
+    .map(r => convertRow(r, colIdx))
+    .filter(r => r.name);
+  if (!parsed.length) { alert('データを読み込めませんでした（アーティスト名の列を認識できませんでした）'); return; }
 
   const key = nameRaw.replace(/[\s\/\\]/g, '_');
 
@@ -614,10 +731,9 @@ function renderTile() {
     const r       = scores[i] || {};
     const score   = r.score || '';
     const cls     = SCORE_CLASS[score] || '';
-    const name    = row[C.name]    || '—';
-    const type    = row[C.type]    || '';
-    const members = row[C.members] || '';
-    const meta_   = [type, members ? members+'名' : ''].filter(Boolean).join(' · ');
+    const name    = row.name || '—';
+    const typeTop = (row.typeMain || '').split(';')[0].trim();
+    const meta_   = [typeTop, row.role].filter(Boolean).join(' · ');
 
     return `
       <div class="tile ${cls}" onclick="openCard(${i})">
@@ -640,40 +756,41 @@ function renderCard() {
   const row = rows[cur];
   if (!row) return;
 
-  const meta    = getMeta(currentEvent);
-  const name    = row[C.name]    || '—';
-  const type    = row[C.type]    || '';
-  const members = row[C.members] || '';
-  const contact = row[C.contact] || '';
-  const email   = row[C.email]   || '';
-  const phone   = row[C.phone]   || '';
-  const sns     = row[C.sns]     || '';
-  const music   = row[C.music]   || '';
-  const note    = row[C.note]    || '';
+  const meta      = getMeta(currentEvent);
+  const name      = row.name || '—';
+  const types     = (row.typeMain || '').split(';').map(s => s.trim()).filter(Boolean);
+  const contact   = [row.lastName, row.firstName].filter(Boolean).join(' ');
 
   document.getElementById('eventPill').textContent  = meta.name || currentEvent;
   document.getElementById('progText').textContent   = `${cur + 1} / ${rows.length}`;
   document.getElementById('progFill').style.width   = `${((cur + 1) / rows.length) * 100}%`;
 
   let badges = '';
-  if (type)    badges += `<span class="badge">${esc(type)}</span>`;
-  if (members) badges += `<span class="badge">${esc(members)}名</span>`;
+  if (row.role) badges += `<span class="badge">${esc(row.role)}</span>`;
+  types.forEach(t => { badges += `<span class="badge">${esc(t)}</span>`; });
 
+  const snsLinks   = extractLinks(row.sns);
+  const musicLinks = extractLinks(row.music);
   let links = '';
-  if (sns)   links += `<a class="link-pill" href="${esc(sns)}" target="_blank">🔗 SNS</a>`;
-  if (music) links += `<a class="link-pill" href="${esc(music)}" target="_blank">🎵 楽曲</a>`;
+  snsLinks.forEach(l   => { links += `<a class="link-pill" href="${esc(l.url)}" target="_blank">🔗 ${esc(l.label || 'SNS')}</a>`; });
+  musicLinks.forEach(l => { links += `<a class="link-pill" href="${esc(l.url)}" target="_blank">🎵 ${esc(l.label || '楽曲')}</a>`; });
 
   let info = '';
-  if (contact) info += infoRow('記入者', contact);
-  if (email)   info += infoRow('メール', email);
-  if (phone)   info += infoRow('電話',   phone);
+  if (contact)     info += infoRow('記入者',   contact);
+  if (row.company) info += infoRow('所属',     row.company);
+  if (row.email)   info += infoRow('メール',   row.email);
+  if (row.phone)   info += infoRow('電話',     row.phone);
+
+  let notes = '';
+  if (row.typeNote) notes += `<div class="note-box"><b>編成メモ：</b>${esc(row.typeNote)}</div>`;
+  if (row.note)      notes += `<div class="note-box"><b>備考：</b>${esc(row.note)}</div>`;
 
   document.getElementById('artistCard').innerHTML = `
     <div class="artist-name">${esc(name)}</div>
     ${badges ? `<div class="badges">${badges}</div>` : ''}
     ${info}
     ${links ? `<div style="margin:12px 0 4px">${links}</div>` : ''}
-    ${note ? `<div class="note-box">${esc(note)}</div>` : ''}
+    ${notes}
   `;
 
   const r = scores[cur] || {};
@@ -743,8 +860,9 @@ function goSummary() {
     if (!items.length) return;
     html += `<div class="group-title">${G_LABEL[g]}（${items.length}組）</div>`;
     items.forEach(({ row, r, i }) => {
-      const name  = row[C.name] || '—';
-      const meta_ = [row[C.type]||'', (row[C.members]||'')+'名'].filter(x=>x&&x!=='名').join(' / ');
+      const name  = row.name || '—';
+      const typeTop = (row.typeMain || '').split(';')[0].trim();
+      const meta_ = [typeTop, row.role].filter(Boolean).join(' / ');
       html += `
         <div class="sum-item" onclick="openCard(${i})">
           <div class="sum-icon">${g === '未評価' ? '—' : g}</div>
@@ -775,10 +893,10 @@ function resetEvent() {
 
 // ── Export ────────────────────────────────────────────────
 function exportTSV() {
-  let out = 'アーティスト名\t出演形態\t人数\t評価\tメモ\n';
+  let out = 'アーティスト名\t活動形態\t記入者属性\t評価\tメモ\n';
   rows.forEach((row, i) => {
     const r = scores[i] || {};
-    out += [row[C.name]||'', row[C.type]||'', row[C.members]||'', r.score||'', r.memo||''].join('\t') + '\n';
+    out += [row.name||'', row.typeMain||'', row.role||'', r.score||'', r.memo||''].join('\t') + '\n';
   });
 
   navigator.clipboard.writeText(out).then(() => {
